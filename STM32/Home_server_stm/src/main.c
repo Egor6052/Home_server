@@ -11,7 +11,7 @@ int main(void) {
     I2C_Init();
     AHT10_Init();
 
-    Blink_LED();
+    // Blink_LED();
     
     const char *stmID = getID_stm();
 
