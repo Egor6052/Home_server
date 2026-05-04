@@ -12,26 +12,23 @@
 
 class Http {
 private:
-    std::string _ip = "0.0.0.0";
+    std::string _ip = "127.0.0.1";
     int port = 1616;
-    std::string server_ip = "0.0.0.0";
 
     std::vector<httplib::DataSink *> stream_clients;
     std::mutex clients_mutex;
     std::filesystem::path getConfigPath();
 
-    void handleConfig(const httplib::Request& req, httplib::Response& res, HomeServer& home_server);
     void handle24data(const httplib::Request& req, httplib::Response& res, HomeServer& home_server);
     void handleCameraControl(const httplib::Request& req, httplib::Response& res);
     void handleLog(const httplib::Request& req, httplib::Response& res, HomeServer& home_server);
     void handleRestartDaemon(const httplib::Request& req, httplib::Response& res, HomeServer& home_server);
 
-
     HomeServer* serverPtr = nullptr;
 
     public:
 
-    bool saveConfigToFile();
+    // bool saveConfigToFile();
     // bool loadConfigFromFile();
     // void loadConfig();
 
@@ -41,7 +38,7 @@ private:
     std::string getDashIP();
     int getDashPort();
     static void addCorsHeaders(httplib::Response &res);
-    void start_API(HomeServer &home_server, std::string static_path);
+    void start_API(HomeServer &home_server);
 
     // test
     void broadcast_event(const std::string& type, nlohmann::ordered_json &payload);

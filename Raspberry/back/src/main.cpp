@@ -17,17 +17,13 @@ int main() {
     HomeServer home_server;
     
     daemon.addToStartup();
+    http.start_API(home_server);
 
     std::thread logic_thread([&home_server]() { 
         home_server.run_logic(); 
     });
 
-    std::cout << "Server system initialized." << std::endl;
-
-    std::string path_to_front = "../../front/dist";
-    std::cout << "Starting HTTP Server..." << std::endl;
-    
-    http.start_API(home_server, path_to_front);
+    std::cout << "Server system started." << std::endl;
 
     if (logic_thread.joinable()) {
         logic_thread.join();

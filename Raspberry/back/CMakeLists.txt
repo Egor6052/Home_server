@@ -38,22 +38,11 @@ set(SOURCE_FILES
     # Http
     src/Http/Http.cpp
     src/Http/getDashIP.cpp
-    src/Http/loadConfig.cpp
-    src/Http/handleConfig.cpp
     src/Http/handle24data.cpp
     src/Http/handleCameraControl.cpp
     src/Http/handleLog.cpp
     src/Http/handleRestartDaemon.cpp
 
-    # src/Http/handleDropPoint.cpp
-    # src/Http/handleMissionSettings.cpp
-    # src/Http/handleSavedPoints.cpp
-    # src/Http/handleSetting.cpp
-    # src/Http/handleStartStopPause.cpp
-    # src/Http/handleSystemReboot.cpp
-    # src/Http/handleTrackPoints.cpp
-    # src/Http/handleAllMission.cpp
-    
 )
 
 # Додавання виконуваного файлу

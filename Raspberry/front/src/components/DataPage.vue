@@ -106,9 +106,9 @@ import CameraModule from '../components/CameraModule.vue'
 const measurements = ref([])
 const loading = ref(false)
 const serverIP = window.location.hostname
-const apiPort = "1616"
 
-const baseUrl = computed(() => `http://${serverIP}:${apiPort}`)
+
+const baseUrl = computed(() => `http://${serverIP}`)
 
 const fetchData = async () => {
   if (loading.value) return
