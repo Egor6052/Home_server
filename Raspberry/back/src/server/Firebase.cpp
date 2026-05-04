@@ -7,17 +7,17 @@
 using json = nlohmann::json;
 
 
-size_t Server::WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+size_t HomeServer::WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
     ((std::string*)userp)->append((char*)contents, size * nmemb);
     return size * nmemb;
 }
 
-void Server::connect_to_firebase() {
+void HomeServer::connect_to_firebase() {
     curl_global_init(CURL_GLOBAL_ALL);
     std::cout << "Firebase ready." << std::endl;
 }
 
-void Server::send_data_to_firebase(
+void HomeServer::send_data_to_firebase(
     std::string& station_id,
     std::string timestamp,
     std::string& latitude,

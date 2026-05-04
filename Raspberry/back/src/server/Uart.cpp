@@ -11,7 +11,7 @@
 #include <nlohmann/json.hpp>
 #include <thread>
 
-void Server::initUART1() {
+void HomeServer::initUART1() {
     auto init_uart = [this]() -> bool { 
         if (!gpio_uart_init("/dev/serial0")) {
             std::cerr << "Cannot initialize UART! Retrying in 1s..." << std::endl;
@@ -28,7 +28,7 @@ void Server::initUART1() {
 }
 
 // uart-ttl in USB
-bool Server::usb_uart_init(const char *device) {
+bool HomeServer::usb_uart_init(const char *device) {
     uart_fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY);
     if (uart_fd < 0)
     {
@@ -51,7 +51,7 @@ bool Server::usb_uart_init(const char *device) {
 }
 
 // Raspberry Pi 5 UART in GPIO
-bool Server::gpio_uart_init(const char *device) {
+bool HomeServer::gpio_uart_init(const char *device) {
     // O_NDELAY (або O_NONBLOCK) важливий, щоб read не зависав!
     uart_fd = open(device, O_RDWR | O_NOCTTY | O_SYNC | O_NDELAY);
     if (uart_fd < 0) {
@@ -95,7 +95,7 @@ bool Server::gpio_uart_init(const char *device) {
     return true;
 }
 
-bool Server::uart_request_update() {
+bool HomeServer::uart_request_update() {
     if (uart_fd < 0) return false;
     tcflush(uart_fd, TCIFLUSH);
     std::string request = R"({"mk":"1","data":"true"})";
@@ -111,7 +111,7 @@ bool Server::uart_request_update() {
 }
 
 
-void Server::update_data_from_uart() {
+void HomeServer::update_data_from_uart() {
     if (uart_fd < 0) {
         std::cout << "[UART] UART not initialized!" << std::endl;
         return;
@@ -153,21 +153,23 @@ void Server::update_data_from_uart() {
     try {
         json j = json::parse(packet);
         
-        // ПОМИЛКА 2: Не можна присвоювати std::string у double!
-        // nlohmann::json автоматично конвертує типи, просто приберіть std::to_string
         if (j.contains("id"))   currentData.station_id = j["id"].get<std::string>();
         if (j.contains("lat"))  currentData.lat        = j.value("lat", 0.0);
         if (j.contains("lng"))  currentData.lon        = j.value("lng", 0.0);
         if (j.contains("temp")) currentData.temp       = j.value("temp", 0.0);
         if (j.contains("hum"))  currentData.humidity   = j.value("hum", 0.0);
         
-        // ПОМИЛКА 3: Змінної timestamp не існує в класі, є currentData.timestamp
         currentData.timestamp = getCurrentDateTime();
 
-        // ПОМИЛКА 4: Змінних temperature та humidity не існує, є currentData.temp та currentData.humidity
         std::cout << "[UART] Success: Temp=" << currentData.temp 
                 << ", Hum=" << currentData.humidity << std::endl;
-
+    
+        if (saveToFile()) {
+            std::cout << "\033[32m[OK] Data synced to local storage.\033[0m" << std::endl;
+        } else {
+            std::cerr << "\033[31m[ERROR] Failed to write data to file!\033[0m" << std::endl;
+        }
+    
     } catch (...) {
         std::cerr << "[UART] JSON parse error" << std::endl;
     }

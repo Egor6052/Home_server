@@ -2,28 +2,12 @@
 
 This is ahome server app, working in autostart and collection the date about humidity and temperature.
 
+Extansions:
+```sh
+sudo apt-get install v4l-utils
 
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyAPJTbQ03YqUr-XkrodwyufgBAmfAJtD70",
-  authDomain: "home-server-9e586.firebaseapp.com",
-  projectId: "home-server-9e586",
-  storageBucket: "home-server-9e586.firebasestorage.app",
-  messagingSenderId: "816629930704",
-  appId: "1:816629930704:web:9aafbfbf66519357ed1cd5",
-  measurementId: "G-YWC1W33PM1"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+sudo apt-get install ffmpeg alsa-utils
+```
 
 
 

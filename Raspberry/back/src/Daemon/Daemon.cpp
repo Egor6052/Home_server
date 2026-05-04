@@ -14,7 +14,7 @@ Daemon::Daemon() {
     setServicePath("/etc/systemd/system/home_server.service");
     setProgramPath(absolutePath() + "/build/home_server");
     setWorkingDirectory(absolutePath());
-    // setServerIP("boat8m");
+    // setServerIP("server8m");
     // setPort(6060);
     // setBreakpoint("/daemon");
 }

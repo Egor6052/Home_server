@@ -31,11 +31,17 @@ struct StationData {
     double humidity = 0.0;
 };
 
+struct CameraData {
+    std::string devicePath;
+    std::string deviceName;
+    int port = 8080;
+    bool isActive = false;
+};
 
-class Server {
+class HomeServer {
     private:
+    // HomeServer* serverPtr;
 
-    StationData currentData;
     const std::string FIREBASE_URL =
         "https://home-server-9e586-default-rtdb.firebaseio.com/measurements.json?auth=eOpdxQjllRN3hJ2Z9bIag33HIC2LaU97GkyBRvXG";
 
@@ -50,16 +56,27 @@ class Server {
     // UART
     int uart_fd;
 
+    std::string path_to_db;
+
     public:
 
-    Server();
-    ~Server();
+    HomeServer();
+    ~HomeServer();
 
     void run_logic();
+    
+    StationData currentData;
+    std::vector<CameraData> foundCameras;
+    CameraData camera1;
 
-    // void startTelemetry();
-    // void stopRunningTelemetry();
-    // void telemetry_worker();
+    bool saveToFile();
+    nlohmann::json getLast24Records();
+
+    // Camera
+    void start_camera();
+    void searching_new_usb_cam();
+    void set_new_camera(const std::string& path);
+
 
     // Firebase
     void connect_to_firebase();
@@ -85,9 +102,10 @@ class Server {
     bool is_data_valid();
     std::string getCurrentDateTime();
 
-
     // Functions
     bool ping();
+    void restart_daemon();
+    
     // double calculate_distance_from_last_point();
     // std::string generate_id();
     // double safe_get_double(const std::string& key);

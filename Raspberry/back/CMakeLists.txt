@@ -19,12 +19,14 @@ find_package(nlohmann_json REQUIRED)
 # Path to source files
 set(SOURCE_FILES
     # Server
-    src/server/Firebase.cpp
-    src/server/GetSet.cpp
-    src/server/MainLogic.cpp
-    src/server/Ping.cpp
-    src/server/Server.cpp
-    src/server/Uart.cpp
+    src/Server/Firebase.cpp
+    src/Server/GetSet.cpp
+    src/Server/MainLogic.cpp
+    src/Server/Ping.cpp
+    src/Server/Server.cpp
+    src/Server/Uart.cpp
+    src/Server/saveToFile.cpp
+    src/Server/UsbCam.cpp
 
     # Daemon
     src/Daemon/absolutePath.cpp
@@ -32,6 +34,26 @@ set(SOURCE_FILES
     src/Daemon/Daemon.cpp
     src/Daemon/GetSet.cpp
     src/Daemon/removeFromAutostart.cpp
+
+    # Http
+    src/Http/Http.cpp
+    src/Http/getDashIP.cpp
+    src/Http/loadConfig.cpp
+    src/Http/handleConfig.cpp
+    src/Http/handle24data.cpp
+    src/Http/handleCameraControl.cpp
+    src/Http/handleLog.cpp
+    src/Http/handleRestartDaemon.cpp
+
+    # src/Http/handleDropPoint.cpp
+    # src/Http/handleMissionSettings.cpp
+    # src/Http/handleSavedPoints.cpp
+    # src/Http/handleSetting.cpp
+    # src/Http/handleStartStopPause.cpp
+    # src/Http/handleSystemReboot.cpp
+    # src/Http/handleTrackPoints.cpp
+    # src/Http/handleAllMission.cpp
+    
 )
 
 # Додавання виконуваного файлу
@@ -54,6 +76,7 @@ target_include_directories(home_server
         # include
         src/Daemon
         src/server
+        src/Logger
         
         ${CMAKE_CURRENT_BINARY_DIR}
 )

@@ -2,7 +2,7 @@
 #include <string>
 #include <iostream>
 
-void Server::run_logic() {
+void HomeServer::run_logic() {
 
     while (true) {
         if (ping()) {
@@ -37,7 +37,7 @@ void Server::run_logic() {
                         << "temp=" << currentData.temp << "°C, "
                         << "hum="  << currentData.humidity << "%" << std::endl;
 
-                // 5. Перевіряємо, чи дані коректні
+                // Перевіряємо, чи дані коректні
                 if (is_data_valid()) {
                     std::cout << "Data is correct. Sending to Firebase..." << std::endl;
                     
@@ -65,11 +65,10 @@ void Server::run_logic() {
             // Розумний сон
             if (cycle_success) {
                 std::cout << "Success! Sleeping 1 hour..." << std::endl;
-                std::cout.flush(); 
+                std::cout.flush();
                 std::cerr.flush();
                 std::this_thread::sleep_for(std::chrono::hours(1));
             } else {
-
                 std::cout << "Cycle failed. Retrying in 1 minute..." << std::endl;
                 std::this_thread::sleep_for(std::chrono::minutes(1));
             }

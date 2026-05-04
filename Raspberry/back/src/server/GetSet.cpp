@@ -9,12 +9,12 @@
 #include <nlohmann/json.hpp>
 
 
-std::string Server::getCurrentDateTime() {
+std::string HomeServer::getCurrentDateTime() {
     using namespace std::chrono;
     auto now = system_clock::now();
     std::time_t t = system_clock::to_time_t(now);
     std::tm tm{};
-    localtime_r(&t, &tm); 
+    localtime_r(&t, &tm);
     
     std::ostringstream oss;
     oss << std::put_time(&tm, "%Y-%m-%d_%H:%M:%S");
@@ -31,7 +31,7 @@ std::string Server::getCurrentDateTime() {
     curl = curl_easy_init();
     if (curl) {
         curl_easy_setopt(curl, CURLOPT_URL, "https://timeapi.io/api/Time/current/zone?timeZone=Europe/Kyiv");
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, Server::WriteCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, HomeServer::WriteCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
         
         // Встановлюємо жорсткі таймаути, щоб програма не "зависла" на поганому з'єднанні

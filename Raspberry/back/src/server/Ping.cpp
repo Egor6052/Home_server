@@ -12,7 +12,7 @@
   #include <sys/wait.h>
 #endif
 
-bool Server::ping() {
+bool HomeServer::ping() {
 
     const std::string ip = "8.8.8.8";
     std::string command;
