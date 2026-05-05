@@ -3,12 +3,13 @@
 #include <string>
 #include "../Server/Server.h"
 
+
 void Http::handleCameraControl(const httplib::Request& req, httplib::Response& res) {
     Http::addCorsHeaders(res);
     
     std::string action = req.get_param_value("action");
 
-    // 1. Пошук камер
+    // Пошук камер
     if (action == "search") {
         serverPtr->searching_new_usb_cam();
         
@@ -17,14 +18,14 @@ void Http::handleCameraControl(const httplib::Request& req, httplib::Response& r
         for (const auto& cam : serverPtr->foundCameras) {
             json += "{\"name\":\"" + cam.deviceName + "\", \"path\":\"" + cam.devicePath + "\"},";
         }
-        if (json.back() == ',') json.pop_back(); // видаляємо останню кому
+        if (json.back() == ',') json.pop_back();
         json += "]";
         
         res.set_content(json, "application/json");
         return;
     }
 
-    // 2. Вибір конкретної камери (фронт має прислати шлях)
+    // Вибір конкретної камери (фронт має прислати шлях)
     if (action == "select") {
         std::string selectedPath = req.get_param_value("path");
         serverPtr->set_new_camera(selectedPath);
@@ -32,7 +33,7 @@ void Http::handleCameraControl(const httplib::Request& req, httplib::Response& r
         return;
     }
 
-    // 3. Запуск mjpg_streamer для вибраної камери
+    // Запуск mjpg_streamer для вибраної камери
     if (action == "start") {
         if (!serverPtr->camera1.isActive) {
             res.status = 400;

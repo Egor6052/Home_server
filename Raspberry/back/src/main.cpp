@@ -17,6 +17,7 @@ int main() {
     HomeServer home_server;
     
     daemon.addToStartup();
+    daemon.addNginxConfigToNginx();
     http.start_API(home_server);
 
     std::thread logic_thread([&home_server]() { 

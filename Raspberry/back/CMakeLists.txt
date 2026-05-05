@@ -34,6 +34,7 @@ set(SOURCE_FILES
     src/Daemon/Daemon.cpp
     src/Daemon/GetSet.cpp
     src/Daemon/removeFromAutostart.cpp
+    src/Daemon/NginxConfig.cpp
 
     # Http
     src/Http/Http.cpp

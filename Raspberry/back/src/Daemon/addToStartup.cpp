@@ -5,22 +5,54 @@
 
 #include "Daemon.h"
 
-// TODO: можна зробити перевірку на наявність файлу в systemctl,
-// і якщо нема тільки тоді створювати
 
+/**
+ * @brief Adds the home_server application to system startup via systemd service
+ * 
+ * This function manages the systemd service configuration:
+ * - Service file location: /etc/systemd/system/home_server.service
+ * - If service doesn't exist: creates and enables it
+ * - If service already exists: restarts the background service
+ * 
+ * If running as a service (INVOCATION_ID is set), the function returns early
+ * to prevent recursive restarts.
+ */
 void Daemon::addToStartup() {
-    if (getServicePath().empty()) {
+    if (getenv("INVOCATION_ID") != nullptr) {
+        // Ми запущені як сервіс. НІКОЛИ не викликаємо restart тут!
+        return; 
+    }
+    
+    std::string servicePath = getServicePath();
+
+    if (servicePath.empty()) {
         std::cerr << "Error: servicePath is empty!" << std::endl;
-        // // logError("Error: servicePath is empty!");
         return;
     }
 
-    std::ofstream serviceFile(getServicePath(), std::ios::out | std::ios::trunc);
+    // Чи існує вже файл сервісу?
+    std::ifstream checkFile(servicePath);
+    if (checkFile.good()) {
+        checkFile.close();
+        std::cout << "[Daemon] Service file already exists. Restarting home_server.service..." << std::endl;
+        
+        // Цей код спрацює тільки якщо ви запустили ./triton вручну з терміналу
+        system("sudo systemctl restart home_server.service");
+        
+        // Важливо: після того, як ми дали команду на перезапуск фонового сервісу, 
+        // цей "ручний" процес має завершитися, щоб не заважати.
+        std::cout << "[Daemon] Background service restart triggered. Manual process exiting." << std::endl;
+        exit(0); 
+    }
+    checkFile.close();
+
+    // якщо файлу немає
+    std::ofstream serviceFile(servicePath, std::ios::out | std::ios::trunc);
     if (!serviceFile) {
-        std::cerr << "Could not open " << getServicePath() << " for writing." << std::endl;
-        // // logError("Could not open " + servicePath + " for writing.");
+        std::cerr << "Could not open " << servicePath << " for writing. (Try running with sudo)" << std::endl;
         return;
     }
+
 
     serviceFile << "[Unit]\n";
     serviceFile << "Description=home_server\n";
@@ -37,19 +69,16 @@ void Daemon::addToStartup() {
 
     serviceFile.close();
 
-    int reloadStatus = system("sudo systemctl daemon-reload");
-    if (reloadStatus != 0) {
-        std::cerr << "Error: Failed to reload systemd daemon!" << std::endl;
-        // // logError("Error: Failed to reload systemd daemon!");
-        return;
-    }
+    // Активація
+    std::cout << "[Daemon] Configuring new service..." << std::endl;
+    
+    system("sudo systemctl daemon-reload");
+    system("sudo systemctl enable home_server.service");
+    int startStatus = system("sudo systemctl start home_server.service");
 
-    int enableStatus = system("sudo systemctl enable home_server.service");
-    if (enableStatus != 0) {
-        std::cerr << "Error: Failed to enable home_server service!" << std::endl;
-        // // logError("Error: Failed to enable home_server service!");
-        return;
+    if (startStatus == 0) {
+        std::cout << "\033[1m\033[33mDaemon created and started successfully!\033[0m" << std::endl;
+    } else {
+        std::cerr << "Error: Failed to start new service!" << std::endl;
     }
-
-    std::cout << "\033[1m\033[33mDaemon added to autostart!\033[0m" << std::endl;
 }

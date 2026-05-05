@@ -131,8 +131,7 @@ void Http::start_API(HomeServer &home_server) {
             this->handleRestartDaemon(req, res, home_server);
         });
 
-        std::cout << "Local access:  \033[1m\033[33mhttp://" << this->_ip << ":" << this->port << "\033[0m" << std::endl;
-        std::cout << "Global access: \033[1m\033[33mhttp://" << getDashIP() << ":" << this->port << "\033[0m" << std::endl;
+        std::cout << "Local access:  \033[1m\033[33mhttp://" << this->getDashIP() << ":" << this->port << "\033[0m" << std::endl;
 
         if (!svr.listen(this->_ip.c_str(), this->port)) {
             std::cerr << "Could not start server on " << this->_ip << ":" << this->port << std::endl;

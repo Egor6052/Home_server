@@ -28,10 +28,6 @@ private:
 
     public:
 
-    // bool saveConfigToFile();
-    // bool loadConfigFromFile();
-    // void loadConfig();
-
     Http();
     ~Http();
     
