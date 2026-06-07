@@ -63,10 +63,9 @@ void HomeServer::stm32_helper() {
         std::cerr << "[UART2] Retrying in 2s...\n";
         std::this_thread::sleep_for(std::chrono::seconds(2));
     }
+    std::cout << "[UART2] STM32 listener started\n";
 
-    std::cerr << "[UART2] STM32 listener started\n"; // Використовуємо cerr!
-
-    std::string rx_buffer = ""; // Буфер НАЗОВНІ циклу!
+    std::string rx_buffer = "";
 
     while (true) {
         char buffer[256];
@@ -74,34 +73,25 @@ void HomeServer::stm32_helper() {
         
         if (bytes > 0) {
             buffer[bytes] = '\0';
-            rx_buffer += buffer; // Накопичуємо дані
+            rx_buffer += buffer;
         } else {
-            // Немає нових даних — трохи спимо, щоб не вантажити процесор
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             continue; 
         }
 
-        // Пробуємо знайти початок JSON
         size_t start = rx_buffer.find('{');
         if (start == std::string::npos) {
-            // Дужки немає, значить це сміття. Захист від переповнення:
             if (rx_buffer.length() > 512) rx_buffer.clear(); 
             continue;
         }
 
-        // Шукаємо кінець JSON саме ПІСЛЯ знайденої '{'
         size_t end = rx_buffer.find('}', start);
         if (end == std::string::npos) {
-            // Початок є, а кінця ще немає. Чекаємо наступних байтів.
             continue;
         }
 
-        // --- БІНГО! Ми маємо повний пакет ---
         std::string packet = rx_buffer.substr(start, end - start + 1);
-        
-        // Видаляємо оброблений пакет з буфера (залишаємо те, що прийшло після '}')
         rx_buffer = rx_buffer.substr(end + 1);
-
         std::cerr << "[UART2] RX: " << packet << "\n";
 
         try {
@@ -121,7 +111,7 @@ void HomeServer::stm32_helper() {
 
             std::string response = oss.str();
             write(uart2_fd, response.c_str(), response.size());
-            std::cerr << "[UART2] TX: " << response; // Використовуємо cerr!
+            std::cout << "[UART2] TX: " << response;
 
         } catch (...) {
             std::cerr << "[UART2] JSON parse error: " << packet << "\n";

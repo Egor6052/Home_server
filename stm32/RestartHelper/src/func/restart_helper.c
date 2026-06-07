@@ -74,8 +74,8 @@ void restart_helper(void) {
 
     while (uart_ring_read(&byte)) {
         bytes_received++;
+        // finde last byte of line
         if (byte == '\n' || byte == '\r') {
-            /* кінець рядка — пробуємо розпарсити */
             if (json_len > 0) {
                 json_line[json_len] = '\0';
  
@@ -85,27 +85,24 @@ void restart_helper(void) {
                 float    hum  = 0.0f;
  
                 if (parse_response(json_line, &hb, &ts, &temp, &hum)) {
-                    /* --- успішна відповідь --- */
-                    heartbeat_tx = hb;   /* синхронізуємо свій heartbeat з відповіддю */
-                    last_rx_sec  = seconds;
- 
-                    /* малюємо на дисплеї */
+                    heartbeat_tx = hb;
+                    if (heartbeat_tx >= 255) heartbeat_tx = 0;
+                    last_rx_sec = seconds;
                     show_display_info(temp, hum, ts);
                 }
                 json_len = 0;
             }
         } else {
-            /* накопичуємо байт */
+            // накопичуємо байт
             if (json_len < JSON_MAX_LEN - 1) {
                 json_line[json_len++] = (char)byte;
             } else {
-                /* переповнення — скидаємо буфер */
+                // overflow, скидаємо
                 json_len = 0;
             }
         }
     }
  
-    /* --- 3. Перевірка таймауту --- */
     if ((seconds - last_rx_sec) >= (uint32_t)RESTART_TIMEOUT_SEC) {
         trigger_restart();
     }
@@ -115,6 +112,7 @@ void restart_helper(void) {
 
 static void send_request(void) {
     heartbeat_tx++;
+    if (heartbeat_tx >= 255) heartbeat_tx = 0;
     char buf[64];
     snprintf(buf, sizeof(buf),
              "{\"heartbeat\":%lu,\"command\":\"get_data\"}\r\n",
