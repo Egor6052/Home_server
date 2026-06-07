@@ -17,7 +17,9 @@
  * If running as a service (INVOCATION_ID is set), the function returns early
  * to prevent recursive restarts.
  */
+
 void Daemon::addToStartup() {
+
     if (getenv("INVOCATION_ID") != nullptr) {
         // Ми запущені як сервіс. НІКОЛИ не викликаємо restart тут!
         return; 
@@ -53,9 +55,8 @@ void Daemon::addToStartup() {
         return;
     }
 
-
     serviceFile << "[Unit]\n";
-    serviceFile << "Description=home_server\n";
+    serviceFile << "Description=triton\n";
     serviceFile << "After=network.target\n\n";
 
     serviceFile << "[Service]\n";

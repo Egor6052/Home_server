@@ -18,17 +18,22 @@ int main() {
     
     daemon.addToStartup();
     daemon.addNginxConfigToNginx();
-    http.start_API(home_server);
 
-    std::thread logic_thread([&home_server]() { 
-        home_server.run_logic(); 
+    std::thread logic_thread([&home_server]() {
+        home_server.run_logic();
+    });
+ 
+    std::thread stm32_thread([&home_server]() {
+        home_server.stm32_helper();
     });
 
+    http.start_API(home_server);
+ 
     std::cout << "Server system started." << std::endl;
+ 
+    if (logic_thread.joinable())  logic_thread.join();
+    if (stm32_thread.joinable())  stm32_thread.join();
 
-    if (logic_thread.joinable()) {
-        logic_thread.join();
-    }
 
     return 0;
 }

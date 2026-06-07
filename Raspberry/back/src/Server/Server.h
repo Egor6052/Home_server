@@ -55,6 +55,7 @@ class HomeServer {
 
     // UART
     int uart_fd;
+    int uart2_fd = -1;
 
     std::string path_to_db;
 
@@ -85,6 +86,8 @@ class HomeServer {
 
     // UART
     void initUART1();
+    bool initUART2();
+    void stm32_helper();
     bool gpio_uart_init(const char* device);
     bool usb_uart_init(const char *device);
     bool uart_request_update();

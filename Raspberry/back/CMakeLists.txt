@@ -27,6 +27,7 @@ set(SOURCE_FILES
     src/Server/Uart.cpp
     src/Server/saveToFile.cpp
     src/Server/UsbCam.cpp
+    src/Server/uart2.cpp
 
     # Daemon
     src/Daemon/absolutePath.cpp
