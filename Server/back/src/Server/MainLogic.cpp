@@ -1,28 +1,21 @@
 #include "Server.h"
 #include <string>
 #include <iostream>
+#include <thread>
 
 void HomeServer::run_logic() {
 
     while (true) {
         if (ping()) {
             connect_to_firebase();
-            initUART("/dev/serial0");
             
-            // Використовуємо getCurrentDateTime() для логу, щоб бачити реальний час виконання циклу
             std::cout << "\n === Loop Start: " << getCurrentDateTime() << " ===" << std::endl;
             bool cycle_success = false;
             
             // Відправка запиту
             if (!uart_request_update()) {
                 std::cerr << "[ERROR] Failed to send request! Retrying in 5 seconds..." << std::endl;
-                
                 std::this_thread::sleep_for(std::chrono::seconds(5));
-                
-                // while (!init_uart()) {
-                //     std::cerr << "[UART] Failed to re-initialize. Retrying in 2s..." << std::endl;
-                //     std::this_thread::sleep_for(std::chrono::seconds(2));
-                // }
                 
             } else {
                 // Чекаємо відповідь
@@ -30,12 +23,15 @@ void HomeServer::run_logic() {
 
                 update_data_from_uart();
 
-                std::cout << "[UART] Received data -> "
-                        << "id="   << currentData.station_id << ", "
-                        << "lat="  << currentData.lat << ", "
-                        << "lng="  << currentData.lon << ", "
-                        << "temp=" << currentData.temp << "°C, "
-                        << "hum="  << currentData.humidity << "%" << std::endl;
+                // Выводим только если данные реально пришли и не пустые
+                if (!currentData.station_id.empty()) {
+                    std::cout << "[UART] Received data -> "
+                            << "id="   << currentData.station_id << ", "
+                            << "lat="  << currentData.lat << ", "
+                            << "lng="  << currentData.lon << ", "
+                            << "temp=" << currentData.temp << "°C, "
+                            << "hum="  << currentData.humidity << "%" << std::endl;
+                }
 
                 // Перевіряємо, чи дані коректні
                 if (is_data_valid()) {
@@ -74,7 +70,7 @@ void HomeServer::run_logic() {
             }
         } else {
             std::cout << "[ERROR] Connection lost!" << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(5));
         }
     }
-    std::this_thread::sleep_for(std::chrono::seconds(5));
 }

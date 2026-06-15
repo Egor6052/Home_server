@@ -89,13 +89,9 @@ class HomeServer {
 
     // UART
     int initUART(const std::string& device_path);
-    // void initUART1();
-    // bool initUART2();
-    // void initUART(std::string value_path);
     
     void stm32_helper();
     bool gpio_uart_init(const char* device);
-    // bool usb_uart_init(const char *device);
     bool uart_request_update();
     void update_data_from_uart();
 

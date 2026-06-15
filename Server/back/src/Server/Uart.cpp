@@ -58,29 +58,6 @@ int HomeServer::initUART(const std::string& device_path) {
     return fd; // Возвращаем готовый дескриптор
 }
 
-// uart-ttl in USB
-// bool HomeServer::usb_uart_init(const char *device) {
-//     uart_fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY);
-//     if (uart_fd < 0)
-//     {
-//         std::cerr << "[UART] Failed to open device " << device << std::endl;
-//         return false;
-//     }
-//     fcntl(uart_fd, F_SETFL, 0);
-//     termios options{};
-//     tcgetattr(uart_fd, &options);
-//     cfsetispeed(&options, B9600);
-//     cfsetospeed(&options, B9600);
-//     options.c_cflag |= (CLOCAL | CREAD);
-//     options.c_cflag &= ~PARENB;
-//     options.c_cflag &= ~CSTOPB;
-//     options.c_cflag &= ~CSIZE;
-//     options.c_cflag |= CS8;
-//     tcsetattr(uart_fd, TCSANOW, &options);
-//     std::cout << "[UART] Initialized on " << device << std::endl;
-//     return true;
-// }
-
 // Server Pi 5 UART in GPIO
 bool HomeServer::gpio_uart_init(const char *device) {
     // O_NDELAY (або O_NONBLOCK) важливий, щоб read не зависав!
