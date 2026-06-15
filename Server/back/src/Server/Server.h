@@ -6,7 +6,7 @@
 #include <nlohmann/json.hpp>
 #include "../lib/http/httplib.h"
 
-// Raspberry Pi 5 UART in GPIO
+// Server Pi 5 UART in GPIO
 // /boot/config.txt:
 // enable_uart=1
 // dtoverlay=uart0
@@ -34,7 +34,8 @@ struct StationData {
 struct CameraData {
     std::string devicePath;
     std::string deviceName;
-    int port = 8080;
+    std::string alsa_hw_id;
+    int port;
     bool isActive = false;
 };
 
@@ -71,11 +72,13 @@ class HomeServer {
     CameraData camera1;
 
     bool saveToFile();
+    // void saveToDB();
     nlohmann::json getLast24Records();
 
     // Camera
     void start_camera();
     void searching_new_usb_cam();
+    std::string find_alsa_device_for_camera(const std::string& video_path);
     void set_new_camera(const std::string& path);
 
 
@@ -85,23 +88,18 @@ class HomeServer {
     static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp);
 
     // UART
-    void initUART1();
-    bool initUART2();
+    int initUART(const std::string& device_path);
+    // void initUART1();
+    // bool initUART2();
+    // void initUART(std::string value_path);
+    
     void stm32_helper();
     bool gpio_uart_init(const char* device);
-    bool usb_uart_init(const char *device);
+    // bool usb_uart_init(const char *device);
     bool uart_request_update();
     void update_data_from_uart();
 
-    // Property
-    // void set_server_property(const std::string& key, const nlohmann::ordered_json& value);
-    // nlohmann::ordered_json get_server_property(const std::string& key);
-    // void set_property(const std::string& key, const nlohmann::ordered_json& value) override;
-    // nlohmann::ordered_json get_property(const std::string& key) override;
-
-
     // Stations
-    // Допоміжна функція — перевіряє, чи отримали реальні дані, а не "нулі"
     bool is_data_valid();
     std::string getCurrentDateTime();
 

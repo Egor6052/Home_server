@@ -15,13 +15,13 @@ sudo apt install nginx
 ## Nginx configuration
 create a simlinc to project file
 ```sh
-sudo ln -s /home/admin/Programs/Raspberry/back/nginx.conf /etc/nginx/sites-enabled/homeserver
+sudo ln -s /home/admin/Programs/Server/back/nginx.conf /etc/nginx/sites-enabled/homeserver
 
 ```
 
 >The dist folder and all files in it must be readable:
 ```sh
-chmod -R 755 /home/admin/Programs/Raspberry/front/dist
+chmod -R 755 /home/admin/Programs/Server/front/dist
 ```
 
 >Check if Nginx sees your file and if there are no errors:

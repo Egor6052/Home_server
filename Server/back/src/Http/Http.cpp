@@ -94,24 +94,6 @@ void Http::start_API(HomeServer &home_server) {
             this->handleCameraControl(req, res);
         });
 
-        // if (!static_path.empty()) {
-        //     bool ok = svr.set_mount_point("/", static_path.c_str());
-        //     std::cout << "[Web] Mounting front-end: " << (ok ? "SUCCESS" : "FAILED") << " at " << static_path << "\n";
-
-        //     svr.set_error_handler([static_path](const auto& req, auto& res) {
-        //         if (res.status == 404 && req.path.rfind("/api/", 0) != 0) {
-        //             auto index_path = (std::filesystem::path(static_path) / "index.html");
-        //             std::ifstream ifs(index_path, std::ios::binary);
-        //             if (ifs) {
-        //                 std::stringstream ss;
-        //                 ss << ifs.rdbuf();
-        //                 res.set_content(ss.str(), "text/html; charset=utf-8");
-        //                 res.status = 200;
-        //             }
-        //         }
-        //     });
-        // }
-
         svr.Options(R"(/api/.*)", [](const httplib::Request& req, httplib::Response& res) {
             Http::addCorsHeaders(res);
             res.status = 200;

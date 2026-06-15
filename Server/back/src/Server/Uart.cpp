@@ -11,46 +11,77 @@
 #include <nlohmann/json.hpp>
 #include <thread>
 
-void HomeServer::initUART1() {
-    auto init_uart = [this]() -> bool { 
-        if (!gpio_uart_init("/dev/serial0")) {
-            std::cerr << "Cannot initialize UART! Retrying in 1s..." << std::endl;
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            return false;
-        }
-        return true;
-    };
-    
-    while (!init_uart()) { }
-    std::cout << "UART initialized. Entering main loop." << std::endl;
 
-    std::this_thread::sleep_for(std::chrono::seconds(2)); 
-}
-
-// uart-ttl in USB
-bool HomeServer::usb_uart_init(const char *device) {
-    uart_fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY);
-    if (uart_fd < 0)
-    {
-        std::cerr << "[UART] Failed to open device " << device << std::endl;
-        return false;
+int HomeServer::initUART(const std::string& device_path) {
+    int fd = open(device_path.c_str(), O_RDWR | O_NOCTTY | O_SYNC | O_NDELAY);
+    if (fd < 0) {
+        return -1;
     }
-    fcntl(uart_fd, F_SETFL, 0);
+
+    // Неблокирующий режим
+    fcntl(fd, F_SETFL, FNDELAY); 
+
     termios options{};
-    tcgetattr(uart_fd, &options);
+    if (tcgetattr(fd, &options) != 0) {
+        std::cerr << "[UART] tcgetattr failed for " << device_path << std::endl;
+        close(fd);
+        return -1;
+    }
+
+    // Скорость 9600
     cfsetispeed(&options, B9600);
     cfsetospeed(&options, B9600);
+
+    // Настройки 8N1 (8 бит, без четности, 1 стоп-бит)
     options.c_cflag |= (CLOCAL | CREAD);
     options.c_cflag &= ~PARENB;
     options.c_cflag &= ~CSTOPB;
     options.c_cflag &= ~CSIZE;
     options.c_cflag |= CS8;
-    tcsetattr(uart_fd, TCSANOW, &options);
-    std::cout << "[UART] Initialized on " << device << std::endl;
-    return true;
+    options.c_cflag &= ~CRTSCTS; // Выключаем аппаратный контроль потока
+
+    // Режим Raw (отключаем канонический режим, эхо, сигналы)
+    options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+    options.c_iflag &= ~(IXON | IXOFF | IXANY | ICRNL);
+    options.c_oflag &= ~OPOST;
+
+    // Применяем настройки
+    if (tcsetattr(fd, TCSANOW, &options) != 0) {
+        std::cerr << "[UART] tcsetattr failed for " << device_path << std::endl;
+        close(fd);
+        return -1;
+    }
+
+    tcflush(fd, TCIOFLUSH);
+    std::cout << "[UART] Initialized on " << device_path << " (Non-blocking mode)" << std::endl;
+    
+    return fd; // Возвращаем готовый дескриптор
 }
 
-// Raspberry Pi 5 UART in GPIO
+// uart-ttl in USB
+// bool HomeServer::usb_uart_init(const char *device) {
+//     uart_fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY);
+//     if (uart_fd < 0)
+//     {
+//         std::cerr << "[UART] Failed to open device " << device << std::endl;
+//         return false;
+//     }
+//     fcntl(uart_fd, F_SETFL, 0);
+//     termios options{};
+//     tcgetattr(uart_fd, &options);
+//     cfsetispeed(&options, B9600);
+//     cfsetospeed(&options, B9600);
+//     options.c_cflag |= (CLOCAL | CREAD);
+//     options.c_cflag &= ~PARENB;
+//     options.c_cflag &= ~CSTOPB;
+//     options.c_cflag &= ~CSIZE;
+//     options.c_cflag |= CS8;
+//     tcsetattr(uart_fd, TCSANOW, &options);
+//     std::cout << "[UART] Initialized on " << device << std::endl;
+//     return true;
+// }
+
+// Server Pi 5 UART in GPIO
 bool HomeServer::gpio_uart_init(const char *device) {
     // O_NDELAY (або O_NONBLOCK) важливий, щоб read не зависав!
     uart_fd = open(device, O_RDWR | O_NOCTTY | O_SYNC | O_NDELAY);
@@ -96,12 +127,18 @@ bool HomeServer::gpio_uart_init(const char *device) {
 }
 
 bool HomeServer::uart_request_update() {
-    if (uart_fd < 0) return false;
+    if (uart_fd < 0) {
+        uart_fd = initUART("/dev/serial0");
+        if (uart_fd < 0) {
+            std::cerr << "[UART] Port is down. Cannot send request." << std::endl;
+            return false;
+        }
+    }
     tcflush(uart_fd, TCIFLUSH);
     std::string request = R"({"mk":"1","data":"true"})";
     int bytes = write(uart_fd, request.c_str(), request.size());
     if (bytes <= 0) {
-        std::cerr << "[UART] Failed to send request. Closing descriptor to force reconnect." << std::endl;
+        std::cerr << "\033[31m[UART] Failed to send request. Connection lost. Closing fd.\033[0m" << std::endl;
         close(uart_fd);
         uart_fd = -1;
         return false;
@@ -112,9 +149,8 @@ bool HomeServer::uart_request_update() {
 
 
 void HomeServer::update_data_from_uart() {
-    if (uart_fd < 0) {
-        std::cout << "[UART] UART not initialized!" << std::endl;
-        return;
+   if (uart_fd < 0) {
+        return; 
     }
 
     std::string packet = "";
@@ -128,6 +164,11 @@ void HomeServer::update_data_from_uart() {
             buffer[bytes] = '\0';
             packet += buffer;
             if (packet.find('}') != std::string::npos) break; 
+        } else if (bytes == 0 || (bytes < 0 && errno != EAGAIN && errno != EWOULDBLOCK)) {
+            std::cerr << "\033[31m[UART] Read error or device disconnected.\033[0m" << std::endl;
+            close(uart_fd);
+            uart_fd = -1;
+            return;
         } else {
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }

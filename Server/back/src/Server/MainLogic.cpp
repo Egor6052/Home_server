@@ -7,7 +7,7 @@ void HomeServer::run_logic() {
     while (true) {
         if (ping()) {
             connect_to_firebase();
-            initUART1();
+            initUART("/dev/serial0");
             
             // Використовуємо getCurrentDateTime() для логу, щоб бачити реальний час виконання циклу
             std::cout << "\n === Loop Start: " << getCurrentDateTime() << " ===" << std::endl;
