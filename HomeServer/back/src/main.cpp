@@ -5,6 +5,8 @@
 #include "Server/Server.h"
 #include "Http/Http.h"
 #include "Logger/logger.h"
+// #include "DataManager/DataManager.h"
+
 
 LogBuffer global_logger; 
 
@@ -15,7 +17,9 @@ int main() {
     Daemon daemon;
     Http http;
     HomeServer home_server;
-    
+    // DataManager datamanager;
+    // datamanager.createUserDB();
+
     daemon.addToStartup();
     daemon.addNginxConfigToNginx();
 
