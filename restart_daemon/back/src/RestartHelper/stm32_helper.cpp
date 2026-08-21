@@ -15,7 +15,7 @@ namespace {
 constexpr int      POLL_INTERVAL_SEC        = 5;
 constexpr int      UART_RESPONSE_TIMEOUT_MS = 500;
 constexpr uint8_t  RESTART_TIMEOUT_MIN_SEC  = 5;    /* дзеркалить RESTART_TIMEOUT_MIN_SEC на STM32 */
-constexpr uint8_t  RESTART_TIMEOUT_MAX_SEC  = 254;
+constexpr uint16_t RESTART_TIMEOUT_MAX_SEC = 65534;
 
 constexpr uint8_t  RESTART_CMD_NONE     = 0x00;
 constexpr uint8_t  RESTART_CMD_IMMEDIATE = 0x01;  /* main_decl.h: process_packet() -> trigger_restart() */
@@ -25,13 +25,15 @@ constexpr uint8_t  RESTART_CMD_IMMEDIATE = 0x01;  /* main_decl.h: process_packet
    CRC й розбір пакета розсиплються на обох сторонах. */
 struct __attribute__((packed)) ProtocolPacket_t {
     uint8_t  id;
-    uint8_t  rest_time;        // число = змінити watchdog-таймаут, 0xFF = не змінювати
-    int16_t  temperature;      // ЗАПИТ: 0/1-флаг "звітувати?". ВІДПОВІДЬ: sensor_data.temperature, *100
-    int16_t  street_temp;      // ЗАПИТ: 0/1-флаг. ВІДПОВІДЬ: weather_station.temp, *100
-    uint8_t  street_humidity;  // ЗАПИТ: 0/1-флаг. ВІДПОВІДЬ: weather_station.humidity, % (без *100)
-    uint8_t  restart_command;  // 0x00 = нічого, 0x01 = негайний рестарт, 0x02 = скинути таймаут
-    uint8_t  status;           // ВІДПОВІДЬ: 0x00=OK, 0x01=Error V, 0x02=Error T
-    uint8_t  reserved[5];
+    uint16_t rest_time; // число = змінити watchdog-таймаут, 0xFFFF = не змінювати
+    int16_t  temperature;   // ЗАПИТ: 0/1-флаг "звітувати?". ВІДПОВІДЬ: sensor_data.temperature, *100
+    int16_t  street_temp;   // ЗАПИТ: 0/1-флаг. ВІДПОВІДЬ: weather_station.temp, *100
+    uint8_t  street_humidity;   // ЗАПИТ: 0/1-флаг. ВІДПОВІДЬ: weather_station.humidity, % (без *100)
+    uint8_t  restart_command;   // 0x00 = нічого, 0x01 = негайний рестарт, 0x02 = скинути таймаут
+    uint8_t  status;    // ВІДПОВІДЬ: 0x00=OK, 0x01=Error V, 0x02=Error T
+    uint8_t  culler_temp;
+    uint8_t  culler_status;
+    uint8_t  reserved[2];
     uint16_t crc;
 };
 static_assert(sizeof(ProtocolPacket_t) == 16, "must match PACKET_SIZE in main_decl.h on STM32");
@@ -48,11 +50,12 @@ uint16_t CalculateCRC16(const uint8_t *buffer, uint16_t length) {
     return crc;
 }
 
-uint8_t clamp_timeout(int value) {
+uint16_t clamp_timeout(int value) {
     if (value < RESTART_TIMEOUT_MIN_SEC) return RESTART_TIMEOUT_MIN_SEC;
     if (value > RESTART_TIMEOUT_MAX_SEC) return RESTART_TIMEOUT_MAX_SEC;
-    return static_cast<uint8_t>(value);
+    return static_cast<uint16_t>(value);
 }
+
 
 int open_serial(const std::string& path) {
     int fd = open(path.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
@@ -267,9 +270,9 @@ bool Helper::sendAndReceiveOnce() {
     req.id = deviceId_;
 
     /* rest_time: лише якщо конфіг реально відрізняється від того, що STM32
-       вже підтвердив - інакше 0xFF, щоб не слати одне й те саме щоцикл. */
-    uint8_t desired = clamp_timeout(new_time_sec_restart);
-    req.rest_time = (desired != lastSentTimeoutSec_) ? desired : (uint8_t)0xFF;
+       вже підтвердив - інакше 0xFFFF, щоб не слати одне й те саме щоцикл. */
+    uint16_t desired = clamp_timeout(new_time_sec_restart);
+    req.rest_time = (desired != lastSentTimeoutSec_) ? desired : 0xFFFF;
 
     /* Разова команда від restartSystem() (якщо була запланована) - читаємо
        й одразу скидаємо, щоб вона застосувалась рівно раз. */
@@ -331,7 +334,7 @@ bool Helper::sendAndReceiveOnce() {
             uint16_t crc_calc = CalculateCRC16(window, sizeof(window) - sizeof(resp.crc));
 
             if (crc_calc == resp.crc && resp.id == deviceId_) {
-                if (req.rest_time != 0xFF) {
+                if (req.rest_time != 0xFFFF) {
                     /* STM32 підтвердив прийом - фіксуємо це саме значення як
                        "останнє застосоване", далі шлемо 0xFF, поки не зміниться знову. */
                     lastSentTimeoutSec_ = req.rest_time;

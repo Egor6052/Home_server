@@ -31,11 +31,10 @@ extern char rx_buffer[RX_BUFF_SIZE];
 
 #define UART_RX_RING_SIZE           256  /* байтовий кільцевий буфер прийому UART2 (ISR)        */
 #define RESTART_HOLD_SEC             10  /* тримати пін RESTART активним стільки секунд         */
-#define RESTART_TIMEOUT_DEFAULT_SEC  254  /* дефолтний watchdog-таймаут, поки RPi не пришле свій */
+#define RESTART_TIMEOUT_DEFAULT_SEC  1500  /* дефолтний watchdog-таймаут, поки RPi не пришле свій */
 
 #define CULLER_PIN GPIO_PIN_0
 #define CULLER_GPIO_Port GPIOB
-
 
 #define BUUZER_PIN GPIO_PIN_15
 #define BUZZER_PORT GPIOA
@@ -44,7 +43,7 @@ extern char rx_buffer[RX_BUFF_SIZE];
 #define CULLER_TEMP_MAX_C        90
 #define CULLER_HYSTERESIS_C       5
 
-extern uint32_t restart_timeout_sec;
+extern uint16_t restart_timeout_sec;
 extern uint8_t MY_ID;
 
 #define PACKET_SIZE 16
@@ -55,7 +54,7 @@ extern int byte_count;
 typedef union {
     struct __attribute__((packed)) {
         uint8_t  id;
-        uint8_t  rest_time;        // число = змінити watchdog-таймаут (сек), 0xFF = не змінювати
+        uint16_t rest_time;        // число = змінити watchdog-таймаут (сек), 0xFF = не змінювати
         int16_t  temperature;      // ЗАПИТ: 0=не звітувати/1=звітувати. ВІДПОВІДЬ: sensor_data.temperature, *100
         int16_t  street_temp;      // ЗАПИТ: 0=не звітувати/1=звітувати. ВІДПОВІДЬ: weather_station.temp, *100
         uint8_t  street_humidity;  // ЗАПИТ: 0=не звітувати/1=звітувати. ВІДПОВІДЬ: weather_station.humidity, % (0..100, БЕЗ *100)
@@ -63,7 +62,7 @@ typedef union {
         uint8_t  status;           // ВІДПОВІДЬ: 0x00 = OK, 0x01 = Error V, 0x02 = Error T (поки завжди 0x00 - TODO)
         uint8_t  culler_temp;      // значение целочисленное, на пример 60, пороговое для включение куллера.
         uint8_t  culler_status;    // от Raspberry: 0xFF = ничего не делать, 0x01 - включить насильно, 0x00 - выключить насильно. от stm32 0x00 - не работает, 0x01 - работает.
-        uint8_t  reserved[3];      // запас: майбутні команди керування тощо
+        uint8_t  reserved[2];      // запас: майбутні команди керування тощо
         uint16_t crc;
     } field;
     uint8_t bytes[PACKET_SIZE];

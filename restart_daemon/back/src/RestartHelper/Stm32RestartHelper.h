@@ -13,7 +13,7 @@ struct StmTelemetry {
     float   streetTemperature = 0.0f;   // weather_station.temp на STM32, °C
     uint8_t streetHumidity    = 0;      // weather_station.humidity на STM32, %
     uint8_t status            = 0;      // 0x00=OK, 0x01=Error V, 0x02=Error T (поки завжди 0x00 на STM32)
-    uint8_t sttmRestartTimeoutSec = 0;  // яке watchdog-значення STM32 підтвердив, що зараз тримає
+    uint16_t sttmRestartTimeoutSec = 0;  // яке watchdog-значення STM32 підтвердив, що зараз тримає
     bool    isFresh           = false;  // false, якщо останній обмін не підтверджено (CRC/id/тайм-аут)
 };
 
@@ -56,7 +56,7 @@ private:
     std::thread        worker_;
 
     std::atomic<bool> restartInProgress_{false};
-    uint8_t lastSentTimeoutSec_ = 0xFF;
+    uint16_t lastSentTimeoutSec_ = 0xFFFF;
 
     std::atomic<uint8_t> pendingRestartCommand_{0x00};
 

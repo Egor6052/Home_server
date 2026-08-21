@@ -13,7 +13,7 @@ extern void    culler_set_threshold(uint8_t new_threshold_c);
 extern uint8_t culler_get_status(void);
 extern void    culler_autonomous_tick(int16_t temperature_c100);
 
-uint32_t restart_timeout_sec = RESTART_TIMEOUT_DEFAULT_SEC;
+uint16_t restart_timeout_sec = RESTART_TIMEOUT_DEFAULT_SEC;
 #define RESTART_TIMEOUT_MIN_SEC       5
 
 typedef enum { RESTART_STATE_NORMAL = 0, RESTART_STATE_HOLDING } restart_state_t;
@@ -98,8 +98,8 @@ static void process_packet(const ProtocolPacket_t *req) {
         case 0x01: trigger_restart(); restart_triggered = true; break;
         default: break;
     }
-    if (req->field.rest_time != 0xFF) {
-        uint8_t new_timeout = req->field.rest_time;
+    if (req->field.rest_time != 0xFFFF) {
+        uint16_t new_timeout = req->field.rest_time;
         if (new_timeout < RESTART_TIMEOUT_MIN_SEC) new_timeout = RESTART_TIMEOUT_MIN_SEC;
         restart_timeout_sec = new_timeout;
     }
@@ -121,7 +121,7 @@ static void send_response(const ProtocolPacket_t *req) {
     memset(&res, 0, sizeof(res));
 
     res.field.id              = MY_ID;
-    res.field.rest_time       = (restart_timeout_sec > 254) ? 254 : (uint8_t)restart_timeout_sec;
+    res.field.rest_time = restart_timeout_sec;
     res.field.restart_command = req->field.restart_command; /* ack: яку команду виконали */
     res.field.status          = 0x00;
 
