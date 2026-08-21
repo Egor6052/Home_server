@@ -30,10 +30,11 @@
                 <div class="select-arrow">▼</div>
             </div>
         </div>
-        
-        <button 
-        @click="toggleStream" 
-        class="t-btn power-btn" 
+
+        <button
+        @click="toggleStream"
+        :disabled="isBusy"
+        class="t-btn power-btn"
         :class="isStreaming ? 'red-border' : 'yellow-border'"
         >
         {{ isStreaming ? 'TERMINATE_FEED' : 'INITIATE_FEED' }}
@@ -42,13 +43,12 @@
 
     <!-- ВІДЕОПОТІК -->
     <div class="camera-viewport" :class="{ 'no-signal-border': !isStreaming }">
-        <!-- Якщо стрімінг активний - показуємо картинку, інакше плейсхолдер -->
-        <template v-if="isStreaming">
-            <img :src="cameraUrl" alt="VIDEO_STREAM" class="video-feed" @error="handleImgError" />
-            <audio v-if="isStreaming" :src="`http://${serverIP}:8081`" autoplay></audio>
-        </template>
-        
-        <div v-else class="static-placeholder">
+        <!-- WebSocket + MSE (mpegts.js) замінює старий MJPG <img>.
+             Елемент лишається в DOM завжди, щоб не пере-створювати його —
+             плеєр підключається/відключається окремо через watch(isStreaming). -->
+        <video v-show="isStreaming" ref="videoEl" class="video-feed" muted autoplay playsinline></video>
+
+        <div v-if="!isStreaming" class="static-placeholder">
         <div class="scanline"></div>
         <div class="no-signal-text">SIGNAL_LOST_..._AWAITING_COMMAND</div>
         </div>
@@ -60,7 +60,7 @@
     <div class="camera-footer-meta">
         <div class="meta-item">
             <span class="label">ADDR:</span>
-            <span class="value cyan">{{ serverIP }}:{{ camPort }}</span>
+            <span class="value cyan">{{ serverIP }}:{{ wsPort }}</span>
         </div>
         <div class="meta-item">
             <span class="label">STATUS:</span>
@@ -71,77 +71,152 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, defineProps } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, defineProps } from 'vue'
+import mpegts from 'mpegts.js'
 
 const props = defineProps({
     baseUrl: String,
     serverIP: String,
-    camPort: { type: String, default: "8080" }
+    wsPort: { type: [String, Number], default: 9002 }, // порт VideoStream (WebSocket)
+    cameraId: { type: String, default: 'camera1' }       // шлях ws://.../<cameraId>
 })
 
 const cameras = ref([])
 const selectedPath = ref('')
 const isStreaming = ref(false)
 const isSearching = ref(false)
-const cameraKey = ref(0)
+const isBusy = ref(false) // блокуємо кнопку старт/стоп на час запиту, щоб не наспамити
 
-// Формуємо повний URL для MJPG потоку
-const cameraUrl = computed(() => {
-  return `http://${props.serverIP}:${props.camPort}/?action=stream&t=${cameraKey.value}`
-})
+const videoEl = ref(null)
+let player = null
+let eventSource = null
+
+const videoUrl = computed(() => `http://${props.serverIP}:${props.wsPort}/${props.cameraId}`)
+
+// ---- REST-дії ----
+
+// Знімок поточного стану — викликається один раз при завантаженні сторінки,
+// щоб не залежати від того, застала вона попередні SSE-події чи ні
+// (наприклад, якщо камеру вже запустив інший користувач раніше).
+const fetchStatus = async () => {
+    try {
+        const res = await fetch(`${props.baseUrl}/api/camera?action=status`)
+        const data = await res.json()
+        selectedPath.value = data.selected_path || ''
+        isStreaming.value = !!data.is_streaming
+    } catch (e) {
+        console.error('[CAM] Status fetch failed:', e)
+    }
+}
 
 const searchCameras = async () => {
-  isSearching.value = true
-  try {
-    const res = await fetch(`${props.baseUrl}/api/camera?action=search`, { method: 'POST' })
-    const data = await res.json()
-    cameras.value = data
-    if (data.length > 0 && !selectedPath.value) {
-      selectedPath.value = data[0].path
-      selectCamera()
+    isSearching.value = true
+    try {
+        const res = await fetch(`${props.baseUrl}/api/camera?action=search`, { method: 'POST' })
+        const data = await res.json()
+        cameras.value = data
+        // Автовибір лише якщо камеру ще ніхто не обрав (в т.ч. на іншій сторінці)
+        if (data.length > 0 && !selectedPath.value) {
+            selectedPath.value = data[0].path
+            await selectCamera()
+        }
+    } catch (e) {
+        console.error('[CAM] Search failed:', e)
+    } finally {
+        isSearching.value = false
     }
-  } catch (e) { 
-    console.error("[CAM] Search failed:", e) 
-  } finally { 
-    isSearching.value = false 
-  }
 }
 
 const selectCamera = async () => {
-  try {
-    await fetch(`${props.baseUrl}/api/camera?action=select&path=${encodeURIComponent(selectedPath.value)}`, { method: 'POST' })
-  } catch (e) { 
-    console.error("[CAM] Selection failed:", e) 
-  }
+    try {
+        await fetch(`${props.baseUrl}/api/camera?action=select&path=${encodeURIComponent(selectedPath.value)}`, { method: 'POST' })
+    } catch (e) {
+        console.error('[CAM] Selection failed:', e)
+    }
 }
 
 const toggleStream = async () => {
-  const action = isStreaming.value ? 'stop' : 'start'
-  try {
-    const res = await fetch(`${props.baseUrl}/api/camera?action=${action}`, { method: 'POST' })
-    if (res.ok) {
-      if (action === 'start') {
-        // Даємо серверу 1.5 сек на запуск заліза
-        setTimeout(() => {
-          isStreaming.value = true
-          cameraKey.value++ // Оновлюємо ключ, щоб скинути кеш картинки
-        }, 1500)
-      } else {
-        isStreaming.value = false
-      }
+    const action = isStreaming.value ? 'stop' : 'start'
+    isBusy.value = true
+    try {
+        // isStreaming свідомо не змінюємо тут локально: справжній стан прийде
+        // через /api/events і однаково застосується на всіх відкритих
+        // сторінках, включно з цією — так усі бачать один і той самий стан.
+        await fetch(`${props.baseUrl}/api/camera?action=${action}`, { method: 'POST' })
+    } catch (e) {
+        console.error('[CAM] Toggle failed:', e)
+    } finally {
+        isBusy.value = false
     }
-  } catch (e) { 
-    console.error("[CAM] Toggle failed:", e) 
-  }
 }
 
-const handleImgError = () => {
-  console.error("[CAM] Image load error. Check if mjpg_streamer is running on port", props.camPort);
-  isStreaming.value = false;
+// ---- Відео: WebSocket + MSE (mpegts.js) ----
+
+const attachPlayer = () => {
+    if (!videoEl.value || !mpegts.isSupported()) {
+        console.error('[CAM] MSE playback not supported in this browser')
+        return
+    }
+    detachPlayer()
+
+    player = mpegts.createPlayer({ type: 'mse', isLive: true, url: videoUrl.value })
+    player.on(mpegts.Events.ERROR, (type, detail) => {
+        console.error('[CAM] Player error:', type, detail)
+    })
+    player.attachMediaElement(videoEl.value)
+    player.load()
+    player.play().catch(() => { /* автоплей може бути заблокований, відео все одно muted */ })
 }
 
-onMounted(() => {
-  searchCameras()
+const detachPlayer = () => {
+    if (!player) return
+    try {
+        player.pause()
+        player.unload()
+        player.detachMediaElement()
+        player.destroy()
+    } catch (e) { /* нема сенсу зупиняти вже мертвий плеєр */ }
+    player = null
+}
+
+// Плеєр реагує на isStreaming незалежно від того, хто саме натиснув кнопку —
+// це і є синхронізація: подія від сервера однаково запускає/гасить відео
+// на всіх відкритих сторінках.
+watch(isStreaming, (streaming) => {
+    if (streaming) attachPlayer()
+    else detachPlayer()
+})
+
+// ---- Синхронізація стану між клієнтами (SSE) ----
+
+const connectEvents = () => {
+    eventSource = new EventSource(`${props.baseUrl}/api/events`)
+    eventSource.onmessage = (e) => {
+        const { type, data } = JSON.parse(e.data)
+        if (type === 'cameras_found') {
+            cameras.value = data
+        } else if (type === 'camera_selected') {
+            selectedPath.value = data.path
+        } else if (type === 'camera_state') {
+            isStreaming.value = data.status === 'started'
+        }
+    }
+    eventSource.onerror = () => {
+        // EventSource сам перепідключається; просто лишаємо слід у консолі
+        console.warn('[CAM] SSE connection lost, browser will retry automatically')
+    }
+}
+
+onMounted(async () => {
+    connectEvents()
+    await fetchStatus()
+    await searchCameras()
+    if (isStreaming.value) attachPlayer()
+})
+
+onBeforeUnmount(() => {
+    detachPlayer()
+    eventSource?.close()
 })
 </script>
 

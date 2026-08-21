@@ -1,187 +1,192 @@
 #include "stm32f4xx_hal.h"
 #include "headers/main_decl.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include "headers/weather_station.h"
+#include "headers/inside_server.h"
 #include <string.h>
 
-#define UART_RX_BUF_SIZE       256   /* розмір кільцевого буфера       */
-#define JSON_MAX_LEN           200   /* максимальна довжина одного JSON */
-#define POLL_INTERVAL_SEC        5   /* інтервал між запитами, секунди */
-#define RESTART_TIMEOUT_SEC     60   /* немає відповіді 60 с — перезапуск (тестовий режим) */
-#define RESTART_HOLD_SEC        15   /* тримати пін RESTART активним 15 с */
+uint32_t restart_timeout_sec = RESTART_TIMEOUT_DEFAULT_SEC;
 
-/* Стан модуля перезапуску */
+#define RESTART_TIMEOUT_MIN_SEC       5
+
 typedef enum {
-    RESTART_STATE_NORMAL = 0,  /* штатний опрос heartbeat */
+    RESTART_STATE_NORMAL = 0,
     RESTART_STATE_HOLDING      /* пін RESTART піднятий, чекаємо RESTART_HOLD_SEC */
 } restart_state_t;
 
-/* --- Внутрішні (static) прототипи модуля --- */
-static void    uart_rx_start(void);
-static bool    uart_ring_read(uint8_t *out);
-static bool    parse_response(const char *json, uint32_t *hb);
-static int32_t parse_int_field(const char *json, const char *key);
-static void    send_request(void);
-static void    trigger_restart(void);
+uint8_t rx_packet[PACKET_SIZE];
+uint8_t tx_packet[PACKET_SIZE];
+int     byte_count = 0;
 
 /* Внутрішній стан модуля */
-static uint32_t        heartbeat_tx   = 0;   /* наш лічильник запитів          */
-static uint32_t        last_rx_sec    = 0;   /* seconds у момент останньої відповіді */
-static uint32_t        last_poll_sec  = 0;   /* seconds у момент останнього запиту   */
-static bool            first_run      = true;
-static restart_state_t restart_state  = RESTART_STATE_NORMAL;
-static uint32_t        restart_start_sec = 0;  /* seconds у момент початку HOLDING */
+static uint32_t        last_rx_sec       = 0;  /* seconds останнього ВАЛІДНОГО (свого) пакета */
+static restart_state_t restart_state     = RESTART_STATE_NORMAL;
+static uint32_t        restart_start_sec = 0;  /* seconds початку HOLDING                      */
 
-/* кільцевий буфер прийому UART1, заповнюється з ISR USART1_IRQHandler.
-   Імена з префіксом u1_, щоб не конфліктувати з rx_head/rx_tail
-   буфера UART2, які оголошені як extern volatile у main_decl.h */
-static uint8_t  rx_dma_buf[UART_RX_BUF_SIZE];  /* НЕ використовується для DMA, лишив назву для сумісності */
-static uint8_t  u1_rx_ring[UART_RX_BUF_SIZE];
-static uint16_t u1_rx_head = 0;   /* індекс запису  */
-static uint16_t u1_rx_tail = 0;   /* індекс читання */
+static volatile uint8_t  u2_rx_ring[UART_RX_RING_SIZE];
+static volatile uint16_t u2_rx_head = 0;
+static volatile uint16_t u2_rx_tail = 0;
+static uint8_t            rx_it_byte;
 
-static char     json_line[JSON_MAX_LEN];
-static uint16_t json_len = 0;
-
+static bool uart_ring_read(uint8_t *out);
+static void poll_incoming_packets(void);
+static void process_packet(const ProtocolPacket_t *req);
+static void send_response(const ProtocolPacket_t *req);
 
 void restart_helper_init(void) {
     last_rx_sec   = seconds;
-    last_poll_sec = seconds;
-    first_run     = true;
-    uart_rx_start();
+    byte_count    = 0;
+    restart_state = RESTART_STATE_NORMAL;
+    HAL_UART_Receive_IT(&huart2, &rx_it_byte, 1);
 }
 
 void restart_helper(void) {
 
-    /* У стані HOLDING пін RESTART і LED вже піднятi — просто чекаємо
-       RESTART_HOLD_SEC і не займаємось опитуванням/парсингом */
     if (restart_state == RESTART_STATE_HOLDING) {
         if ((seconds - restart_start_sec) >= (uint32_t)RESTART_HOLD_SEC) {
-            // HAL_GPIO_WritePin(RESTART_GPIO_Port, RESTART_PIN, GPIO_PIN_RESET);
-            HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+            HAL_GPIO_WritePin(RESTART_GPIO_Port, RESTART_PIN, GPIO_PIN_RESET);
+            HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+
             restart_state = RESTART_STATE_NORMAL;
-            /* Скидаємо таймери, щоб не тригернути одразу знову */
-            last_rx_sec   = seconds;
-            last_poll_sec = seconds;
-            first_run     = true;
+
+            byte_count  = 0;
+            u2_rx_tail  = u2_rx_head;
+            last_rx_sec = seconds;
         }
         return;
     }
 
-    if (first_run || (seconds - last_poll_sec) >= (uint32_t)POLL_INTERVAL_SEC) {
-        first_run     = false;
-        last_poll_sec = seconds;
-        send_request();
-    }
+    poll_incoming_packets();
 
+    if ((seconds - last_rx_sec) >= restart_timeout_sec) {
+        trigger_restart();
+        blink_power_led(50);
+    }
+}
+
+static void poll_incoming_packets(void) {
     uint8_t byte;
 
-    while (uart_ring_read(&byte)) {
-        /* finde last byte of line */
-        if (byte == '\n' || byte == '\r') {
-            if (json_len > 0) {
-                json_line[json_len] = '\0';
+    while (restart_state == RESTART_STATE_NORMAL && uart_ring_read(&byte)) {
+        if (byte_count < PACKET_SIZE) {
+            rx_packet[byte_count++] = byte;
+        }
 
-                uint32_t hb = 0;
+        if (byte_count == PACKET_SIZE) {
+            ProtocolPacket_t *req = (ProtocolPacket_t *)rx_packet;
+            uint16_t crc_calc = CalculateCRC16(rx_packet, PACKET_SIZE - sizeof(uint16_t));
 
-                if (parse_response(json_line, &hb)) {
-                    heartbeat_tx = hb;
-                    if (heartbeat_tx >= 255) heartbeat_tx = 0;
+            if (crc_calc == req->field.crc) {
+                if (req->field.id == MY_ID) {
                     last_rx_sec = seconds;
+                    process_packet(req);
+                    send_response(req);
                 }
-                json_len = 0;
-            }
-        } else {
-            /* накопичуємо байт */
-            if (json_len < JSON_MAX_LEN - 1) {
-                json_line[json_len++] = (char)byte;
+                /* валідний кадр (свій чи чужий) розібрано - готові до наступного "з нуля" */
+                byte_count = 0;
             } else {
-                /* overflow, скидаємо */
-                json_len = 0;
+                /* CRC не зійшовся: шум або втрачена синхронізація.
+                   Зсуваємо вікно на 1 байт замість повного скидання -
+                   ресинхронізація відбудеться максимум за PACKET_SIZE байт. */
+                memmove(rx_packet, rx_packet + 1, PACKET_SIZE - 1);
+                byte_count = PACKET_SIZE - 1;
             }
         }
     }
+}
 
-    if ((seconds - last_rx_sec) >= (uint32_t)RESTART_TIMEOUT_SEC) {
-        trigger_restart();
+static void process_packet(const ProtocolPacket_t *req) {
+    bool restart_triggered = false;
+
+    switch (req->field.restart_command) {
+        case 0x02: /* скинути таймаут до дефолтного */
+            restart_timeout_sec = RESTART_TIMEOUT_DEFAULT_SEC;
+            break;
+        case 0x01: /* негайний рестарт - не чекаємо на watchdog */
+            trigger_restart();
+            restart_triggered = true;
+            break;
+        default:
+            break; /* 0x00 або невідомий код - нічого не робимо */
     }
-}
 
-static void send_request(void) {
-    heartbeat_tx++;
-    if (heartbeat_tx >= 255) heartbeat_tx = 0;
-    char buf[48];
-    snprintf(buf, sizeof(buf),
-             "{\"heartbeat\":%lu}\r\n",
-             (unsigned long)heartbeat_tx);
-    UART1_SendString(buf);
-}
-
-static void trigger_restart(void) {
-    /* Піднімаємо пін RESTART і LED, переходимо у стан HOLDING.
-       Обидва опускаються неблокуюче у restart_helper(),
-       через RESTART_HOLD_SEC секунд — щоб не зупиняти MCU на 15 с. */
-    // HAL_GPIO_WritePin(RESTART_GPIO_Port, RESTART_PIN, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-    restart_start_sec = seconds;
-    restart_state     = RESTART_STATE_HOLDING;
-}
-
-static int32_t parse_int_field(const char *json, const char *key) {
-    /* Шукаємо "key": у рядку */
-    char search[32];
-    snprintf(search, sizeof(search), "\"%s\":", key);
-    const char *p = strstr(json, search);
-    if (!p) return 0;
-    p += strlen(search);
-    /* Пропускаємо пробіли */
-    while (*p == ' ') p++;
-    return (int32_t)strtol(p, NULL, 10);
-}
-
-static bool parse_response(const char *json, uint32_t *hb) {
-    /* Перевіряємо що рядок схожий на JSON-об'єкт */
-    if (json[0] != '{') return false;
-
-    /* Перевіряємо наявність обов'язкового поля heartbeat */
-    if (!strstr(json, "\"heartbeat\"")) return false;
-
-    *hb = (uint32_t)parse_int_field(json, "heartbeat");
-
-    return true;
-}
-
-/* HAL-callback викликається з HAL_UART_IRQHandler (див. USART1_IRQHandler нижче) */
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART1) {
-        /* Кладемо отриманий байт у кільцевий буфер */
-        uint8_t byte = rx_dma_buf[0];
-        uint16_t next_head = (u1_rx_head + 1) % UART_RX_BUF_SIZE;
-        if (next_head != u1_rx_tail) {          /* є місце */
-            u1_rx_ring[u1_rx_head] = byte;
-            u1_rx_head = next_head;
+    if (req->field.rest_time != 0xFF) {
+        uint8_t new_timeout = req->field.rest_time;
+        if (new_timeout < RESTART_TIMEOUT_MIN_SEC) {
+            new_timeout = RESTART_TIMEOUT_MIN_SEC;
         }
-        /* Перезапускаємо прийом наступного байту */
-        HAL_UART_Receive_IT(&huart1, rx_dma_buf, 1);
+        restart_timeout_sec = new_timeout;
+    }
+
+    if (!restart_triggered) {
+        HAL_GPIO_WritePin(POWER_LED_GPIO_Port, POWER_LED, GPIO_PIN_RESET);
     }
 }
 
-/* ISR USART1: раніше був відсутній, через що HAL_UART_RxCpltCallback
-   ніколи не викликався і прийом на UART1 фактично не працював.
-   HAL_UART_IRQHandler сам розбирається з прапорцями і кличе callback. */
-void USART1_IRQHandler(void) {
-    HAL_UART_IRQHandler(&huart1);
+static void send_response(const ProtocolPacket_t *req) {
+    ProtocolPacket_t res;
+    memset(&res, 0, sizeof(res));
+
+    res.field.id              = MY_ID;
+    res.field.rest_time       = (restart_timeout_sec > 254) ? 254 : (uint8_t)restart_timeout_sec;
+    res.field.restart_command = req->field.restart_command; /* ack: яку команду виконали */
+    res.field.status          = 0x00;
+
+    /* Кожне поле звітується лише за флагом із запиту; 0 у відповіді означає
+       "не запитувалось" - RPi сам знає, що він запитав, і не має
+       перевіряти це значення, якщо не виставляв відповідний флаг. */
+    if (req->field.temperature != 0) {
+        res.field.temperature = sensor_data.temperature;
+    }
+    if (req->field.street_temp != 0) {
+        res.field.street_temp = weather_station.temp;
+    }
+    if (req->field.street_humidity != 0) {
+        res.field.street_humidity = (uint8_t)weather_station.humidity; /* % 0..100, без масштабування */
+    }
+
+    res.field.crc = CalculateCRC16(res.bytes, PACKET_SIZE - sizeof(uint16_t));
+
+    memcpy(tx_packet, res.bytes, PACKET_SIZE);
+    HAL_UART_Transmit(&huart2, tx_packet, PACKET_SIZE, 100);
 }
 
-static void uart_rx_start(void) {
-    HAL_UART_Receive_IT(&huart1, rx_dma_buf, 1);
+void trigger_restart(void) {
+    HAL_GPIO_WritePin(RESTART_GPIO_Port, RESTART_PIN, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(POWER_LED_GPIO_Port, POWER_LED, GPIO_PIN_SET);
+    restart_start_sec = seconds;
+    restart_state      = RESTART_STATE_HOLDING;
+    blink_power_led(100);
 }
 
-/* Читання одного байту з кільцевого буфера
-   Повертає true якщо байт є, false якщо буфер порожній */
+//    void USART2_IRQHandler(void) { HAL_UART_IRQHandler(&huart2); }
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == USART2) {
+        // ДІАГНОСТИКА: блимає на кожен прийнятий байт UART2
+        HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+
+        uint16_t next_head = (u2_rx_head + 1) % UART_RX_RING_SIZE;
+        if (next_head != u2_rx_tail) {
+            u2_rx_ring[u2_rx_head] = rx_it_byte;
+            u2_rx_head = next_head;
+        }
+        HAL_UART_Receive_IT(&huart2, &rx_it_byte, 1);
+    }
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == USART2) {
+        HAL_UART_Receive_IT(&huart2, &rx_it_byte, 1);
+    }
+}
+
+void USART2_IRQHandler(void) {
+    HAL_UART_IRQHandler(&huart2);
+}
+
 static bool uart_ring_read(uint8_t *out) {
-    if (u1_rx_tail == u1_rx_head) return false;   /* порожній */
-    *out      = u1_rx_ring[u1_rx_tail];
-    u1_rx_tail = (u1_rx_tail + 1) % UART_RX_BUF_SIZE;
+    if (u2_rx_tail == u2_rx_head) return false;
+    *out = u2_rx_ring[u2_rx_tail];
+    u2_rx_tail = (u2_rx_tail + 1) % UART_RX_RING_SIZE;
     return true;
 }

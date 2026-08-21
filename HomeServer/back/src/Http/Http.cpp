@@ -82,16 +82,27 @@ void Http::start_API(HomeServer &home_server) {
 
         svr.new_task_queue = [] { return new httplib::ThreadPool(20); };
 
+        // Відео тепер віддається окремим WebSocket-сервером (H.264/MPEG-TS),
+        // а не через цей httplib-інстанс. start() не блокує.
+        this->videoStream.start();
+
         // svr.Post("/api/config/device-address", [&](const httplib::Request& req, httplib::Response& res) {
         //     this->handleConfig(req, res, home_server);
         // });
 
-        svr.Get("/api/24data", [&](const httplib::Request& req, httplib::Response& res) {
-            this->handle24data(req, res, home_server);
-        });
+        // svr.Get("/api/24data", [&](const httplib::Request& req, httplib::Response& res) {
+        //     this->handle24data(req, res, home_server);
+        // });
 
-        svr.Post("/api/camera", [&](const auto& req, auto& res) {
-            this->handleCameraControl(req, res);
+        // svr.Post("/api/camera", [&](const auto& req, auto& res) {
+        //     this->handleCameraControl(req, res);
+        // });
+
+        // SSE: усі відкриті сторінки дашборду підписуються сюди і отримують
+        // однаковий стан (список камер, вибрана камера, старт/стоп), навіть
+        // якщо дію виконав інший користувач з іншої сторінки.
+        svr.Get("/api/events", [&](const httplib::Request& req, httplib::Response& res) {
+            this->handleEvents(req, res);
         });
 
         svr.Options(R"(/api/.*)", [](const httplib::Request& req, httplib::Response& res) {
@@ -104,9 +115,9 @@ void Http::start_API(HomeServer &home_server) {
         });
 
         // Daemon log
-        svr.Get("/api/log", [&](const httplib::Request& req, httplib::Response& res) {
-            this->handleLog(req, res, home_server);
-        });
+        // svr.Get("/api/log", [&](const httplib::Request& req, httplib::Response& res) {
+        //     this->handleLog(req, res, home_server);
+        // });
 
         // Restart Daemon
         svr.Post("/api/restart", [&](const httplib::Request& req, httplib::Response& res) {

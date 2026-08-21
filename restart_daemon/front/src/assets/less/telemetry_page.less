@@ -1,0 +1,133 @@
+// out: ../css/telemetry_page.css
+
+.telemetry-wrapper {
+  margin-top: 80px; // 60px фіксованої шапки + запас, інакше контент ховається під нею
+  padding: 0 20px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #fff;
+}
+
+.telemetry-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px 16px;
+  border-radius: 2px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &.yellow { background: #ffea00; box-shadow: 0 0 8px #ffea00; animation: pulse 2s infinite; }
+  &.red { background: #ff3e3e; box-shadow: 0 0 8px #ff3e3e; animation: pulse 1s infinite; }
+}
+
+.metric {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.metric-label {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-value {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.metric-sub {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 10px;
+}
+
+.yellow { color: #ffea00; }
+.cyan { color: #00f2ff; }
+.red { color: #ff3e3e; }
+.blue { color: #3e8dff; }
+
+.divider {
+  color: rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+}
+
+.strip-spacer {
+  flex: 1;
+}
+
+.last-update {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.t-btn {
+  background: transparent;
+  border: 1px solid #ffea00;
+  color: #ffea00;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: #ffea00;
+    color: #000;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &.danger {
+    border-color: #ff3e3e;
+    color: #ff3e3e;
+
+    &:hover:not(:disabled) {
+      background: #ff3e3e;
+      color: #fff;
+    }
+  }
+}
+
+.action-message {
+  margin: 8px 0 0 0;
+  font-size: 11px;
+  color: #6fcf97;
+
+  &.is-error {
+    color: #ff3e3e;
+  }
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+
+@media (max-width: 700px) {
+  .telemetry-strip {
+    gap: 10px;
+  }
+  .last-update {
+    display: none;
+  }
+}

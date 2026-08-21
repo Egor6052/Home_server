@@ -1,0 +1,268 @@
+// out: ../css/app_header.css
+
+// ЗМІННІ
+@color-accent: #ffea00;
+@color-bg: rgba(0, 0, 0, 0.95);
+@color-bg-sidebar: #0d0d0d;
+@color-border: rgba(255, 234, 0, 0.2);
+@color-error: #e74c3c;
+@font-mono: 'JetBrains Mono', monospace;
+
+
+
+
+.nav-group.center {
+  display: flex;
+  gap: 25px;
+}
+
+.nav-link {
+  color: rgba(255, 255, 255, 0.5);
+  text-decoration: none;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 6px 4px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+
+  &:hover {
+    color: @color-accent;
+  }
+
+  &.router-link-active {
+    color: @color-accent;
+    border-bottom-color: @color-accent;
+  }
+}
+
+
+
+.header-container {
+  position: fixed;
+  top: 0; 
+  left: 0;
+  width: 100%;
+  height: 60px;
+  background: @color-bg;
+  border-bottom: 1px solid @color-border;
+  backdrop-filter: blur(10px);
+  z-index: 2000;
+  font-family: @font-mono;
+}
+
+.nav-bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  height: 100%;
+  padding: 0 30px;
+}
+
+// ГРУПИ НАВІГАЦІЇ
+.nav-group {
+  display: flex;
+  align-items: center;
+
+  &.left { justify-content: flex-start; }
+  &.center { justify-content: center; }
+  &.right { justify-content: flex-end; }
+}
+
+// БРЕНД (ЛІВО)
+.brand-section {
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    .yellow-box { width: 10px; height: 10px; background: @color-accent; }
+    .brand-text { color: #fff; text-decoration: none; font-weight: 800; font-size: 13px; }
+  }
+}
+
+// КНОПКА ВІДКРИТТЯ ПАНЕЛІ
+.system-panel-btn {
+  background: transparent;
+  border: 1px solid @color-accent;
+  color: @color-accent;
+  padding: 6px 15px;
+  cursor: pointer;
+  font-family: @font-mono;
+  font-size: 11px;
+  margin-right: 20px;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+
+  &:hover {
+    background: @color-accent;
+    color: #000;
+    box-shadow: 0 0 10px rgba(255, 234, 0, 0.4);
+  }
+}
+
+// СИСТЕМНИЙ СТАТУС
+.system-status {
+  display: flex;
+  gap: 15px;
+  font-size: 10px;
+  align-items: center;
+
+  .live-indicator {
+    color: @color-accent;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    .pulse { 
+      width: 6px; height: 6px; background: @color-accent; border-radius: 50%; 
+      animation: blink 1s infinite; 
+    }
+  }
+  .status-divider { width: 1px; height: 15px; background: rgba(255, 255, 255, 0.1); }
+}
+
+// УНІВЕРСАЛЬНИЙ САЙДБАР
+.system-sidebar {
+  position: fixed;
+  top: 0;
+  right: -400px;
+  width: 400px;
+  height: 100vh;
+  background: @color-bg-sidebar;
+  border-left: 1px solid @color-border;
+  z-index: 2100;
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  color: white;
+  box-shadow: -10px 0 30px rgba(0,0,0,0.8);
+
+  &.active {
+    right: 0;
+  }
+
+  .sidebar-header {
+    padding: 20px;
+    background: lighten(@color-bg-sidebar, 5%);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #222;
+
+    h3 {
+      margin: 0;
+      color: @color-accent;
+      font-size: 14px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 20px;
+      cursor: pointer;
+      transition: color 0.2s;
+      &:hover { color: @color-accent; }
+    }
+  }
+
+  // БЛОК ДІЙ (ТЕПЕР ВЕРТИКАЛЬНИЙ)
+  .sidebar-actions {
+    display: flex;
+    flex-direction: column; // Кнопки одна під одною
+    gap: 10px;
+    padding: 20px;
+
+    .action-btn {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      font-family: @font-mono;
+      font-size: 11px;
+      font-weight: bold;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &.restart-btn {
+        background: transparent;
+        border-color: @color-error;
+        color: @color-error;
+
+        &:hover:not(:disabled) {
+          background: @color-error;
+          color: #fff;
+        }
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          border-color: #555;
+          color: #555;
+        }
+      }
+
+      &.refresh-btn {
+        background: rgba(255, 255, 255, 0.05);
+        color: #fff;
+        &:hover { background: rgba(255, 255, 255, 0.15); }
+      }
+    }
+  }
+
+  // СЕКЦІЯ ЛОГІВ
+  .logs-section {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0 20px 20px 20px;
+    overflow: hidden;
+
+    .logs-label {
+      font-size: 10px;
+      color: #555;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .logs-content {
+      flex: 1;
+      background: #000;
+      padding: 15px;
+      font-family: 'Consolas', monospace;
+      font-size: 11px;
+      line-height: 1.4;
+      overflow-y: auto;
+      border: 1px solid #1a1a1a;
+      border-radius: 2px;
+      color: #bbb;
+
+      .log-line {
+        margin-bottom: 4px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid #0a0a0a;
+        word-break: break-all;
+        white-space: pre-wrap;
+
+        &.log-error { color: @color-error; }
+        &.log-info { color: #56ccf2; }
+        &.log-uart { color: #6fcf97; }
+      }
+
+      .no-logs { color: #444; text-align: center; margin-top: 20px; }
+    }
+  }
+}
+
+// ОВЕРЛЕЙ
+.overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(2px);
+  z-index: 2050;
+}
+
+@keyframes blink { 50% { opacity: 0; } }

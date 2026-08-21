@@ -26,8 +26,8 @@ class Daemon {
         void addToStartup();
         void removeFromAutostart();
 
-        void addNginxConfigToNginx();
-        void removeNginxConfigFromNginx();
+        // void addNginxConfigToNginx();
+        // void removeNginxConfigFromNginx();
 
         std::string absolutePath();
         void setWorkingDirectory(std::string valueworkingDirectory);

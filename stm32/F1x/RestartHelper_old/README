@@ -1,0 +1,4 @@
+# UART transmit source code for stm32f103c8t6
+
+## Problem
+During server operation a memory overflow occurs, causing the device to hang and become unresponsive. A helper device based on STM32 polls the server every 20 minutes; if no response is received, it triggers a pin to reboot the server. The OLED shows temperature, humidity, and the time of the last successful server response.

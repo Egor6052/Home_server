@@ -8,6 +8,10 @@
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 
+size_t HomeServer::WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    return size * nmemb;
+}
 
 std::string HomeServer::getCurrentDateTime() {
     using namespace std::chrono;

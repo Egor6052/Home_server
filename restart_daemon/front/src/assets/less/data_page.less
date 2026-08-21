@@ -1,0 +1,319 @@
+// out: ../css/data_page.css
+
+.main-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.data-column {
+  flex: 1;
+  min-width: 400px;
+}
+
+.camera-column {
+  flex: 1.2;
+}
+
+.tactical-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.camera-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.camera-viewport {
+  position: relative;
+  background: #000;
+  border: 1px solid rgba(255, 234, 0, 0.2);
+  aspect-ratio: 16/9;
+}
+
+.video-feed {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #ffea00;
+  pointer-events: none;
+}
+
+.rec-indicator::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: #ff3e3e;
+  border-radius: 50%;
+  margin-right: 5px;
+  animation: pulse 1s infinite;
+}
+
+.corner-brackets {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.corner-brackets::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  border-left: 1px solid #ffea00;
+  border-top: 1px solid #ffea00;
+}
+
+.corner-brackets::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  border-right: 1px solid #ffea00;
+  border-bottom: 1px solid #ffea00;
+}
+
+/* Твої базові стилі */
+.config-wrapper {
+  margin-top: 30px;
+  padding: 30px;
+  color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.header-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 25px;
+  border-bottom: 1px solid rgba(255, 234, 0, 0.2);
+}
+
+.header-spacer {
+  flex: 1;
+}
+
+.config-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 15px;
+  margin-bottom: 10px;
+}
+
+.full-width {
+  grid-column: span 2;
+}
+
+.section-title {
+  font-size: 10px;
+  color: #ffea00;
+  margin: 0;
+  border-left: 2px solid #ffea00;
+  padding-left: 8px;
+  text-transform: uppercase;
+}
+
+.hud-value {
+  font-size: 32px;
+  font-weight: bold;
+}
+
+.yellow {
+  color: #ffea00;
+}
+
+.cyan {
+  color: #00f2ff;
+}
+
+.red {
+  color: #ff3e3e;
+}
+
+.blue {
+  color: #3e8dff;
+}
+
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+}
+
+.chart-wrapper {
+  height: 60px;
+  background: rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.svg-chart {
+  width: 100%;
+  height: 100%;
+}
+
+.status-text {
+  font-size: 10px;
+  opacity: 0.3;
+  text-align: center;
+  line-height: 60px;
+}
+
+.t-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+
+.t-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.t-btn {
+  background: transparent;
+  border: 1px solid #ffea00;
+  color: #ffea00;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.t-btn.tiny {
+  padding: 2px 6px;
+  font-size: 8px;
+}
+
+.t-btn:hover {
+  background: #ffea00;
+  color: #000;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.pulse-yellow {
+  background: #ffea00;
+  box-shadow: 0 0 8px #ffea00;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 900px) {
+  .main-layout {
+    flex-direction: column;
+  }
+
+  .data-column {
+    min-width: 100%;
+  }
+}
+
+
+
+.card-content {
+  margin-top: 10px;
+}
+
+/* Sparkline - маленький лінійний графік */
+.sparkline-container {
+  height: 30px;
+  margin: 10px 0;
+  opacity: 0.8;
+  
+  .sparkline {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 2px currentColor);
+  }
+}
+
+/* Gauge - шкала */
+.hud-gauge {
+  background: rgba(255, 255, 255, 0.05);
+  height: 4px;
+  width: 100%;
+  position: relative;
+  margin-top: 15px;
+  border-radius: 2px;
+
+  .gauge-bar {
+    height: 100%;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 8px currentColor;
+    border-radius: 2px;
+    
+    &.cyan-bg { background: #00f2ff; box-shadow: 0 0 8px #00f2ff; }
+    &.yellow { background: #ffea00; }
+    &.red { background: #ff3e3e; }
+    &.blue { background: #3e8dff; }
+  }
+
+  .gauge-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 8px;
+    color: rgba(255, 255, 255, 0.3);
+    margin-top: 4px;
+    text-transform: uppercase;
+  }
+}
+
+/* Додатково для таблиці */
+.t-table {
+  th {
+    text-align: left;
+    padding: 8px;
+    color: rgba(255, 234, 0, 0.5);
+    font-size: 9px;
+    border-bottom: 1px solid rgba(255, 234, 0, 0.1);
+  }
+  
+  .trend-line {
+    display: inline-block;
+    height: 2px;
+    background: currentColor;
+    opacity: 0.5;
+  }
+}
+
+.table-container {
+  max-height: 400px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
